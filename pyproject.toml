@@ -1,0 +1,15 @@
+[build-system]
+requires = ["poetry-core>=1.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.bandit]
+exclude_dirs = ["tests", "path/to/file"]
+tests = ["B201", "B301"]
+skips = ["B101", "B601"]
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.poetry.dependencies]
+bcrypt = "4.0.1"
+passlib = {extras = ["bcrypt"], version = "^1.7.4"}
