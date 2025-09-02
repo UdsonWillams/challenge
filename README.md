@@ -1,6 +1,6 @@
-# WebService utilizando FastApi
+# Customer Management API - FastAPI
 
-> Customer Definitions
+> Sistema de gerenciamento de clientes com autenticação JWT e favoritos de produtos
 
 [![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-00a393?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
@@ -8,19 +8,31 @@
 [![Tests](https://img.shields.io/badge/Tests-pytest-0a9edc?logo=pytest&logoColor=white)](https://pytest.org/)
 [![Code Style](https://img.shields.io/badge/Code%20Style-Ruff-000000?logo=python&logoColor=white)](https://docs.astral.sh/ruff/)
 
-WebApp de APIs REST utilizando FastAPI, Python 3.11, com suporte a autenticação, testes automatizados e containerização.
+API REST para gerenciamento de clientes com sistema de autenticação JWT, favoritos de produtos e integração com APIs externas.
+
+## Funcionalidades
+
+- 🔐 **Autenticação JWT** com roles (admin/user)
+- 👥 **Gerenciamento de Clientes** (CRUD completo)
+- ⭐ **Sistema de Favoritos** (produtos da API externa)
+- 🛡️ **Autorização baseada em roles**
+- 🧪 **Testes automatizados** com pytest
+- 📦 **Containerização** com Docker
+- 📚 **Documentação automática** com Swagger
 
 ## Requisitos
 
 - Python 3.12
 - Docker & Docker Compose
+- **PostgreSQL** (necessário para executar testes localmente)
 
 ## Configuração Inicial
 
 1. Clone o repositório:
 
    ```sh
-   git clone https://github.com/udsonwillams/
+   git clone https://github.com/udsonwillams/challenge
+   cd challenge
    ```
 
 2. Crie o arquivo `.env` com base no `.env.example`:
@@ -29,79 +41,258 @@ WebApp de APIs REST utilizando FastAPI, Python 3.11, com suporte a autenticaçã
    cp .env.example .env
    ```
 
-3. Atualize as variáveis de ambiente no arquivo `.env` conforme necessário. Caso não seja criado um arquivo `.env` o projeto não iniciará via compose.
+3. Configure as variáveis de ambiente necessárias no `.env`:
+   ```env
+   SECRET_KEY=sua-chave-secreta-aqui
+   POSTGRES_USER=myuser
+   POSTGRES_PASSWORD=mypassword
+   POSTGRES_DB=challenger_db
+   EXTERNAL_PRODUCTS_BASE_URL=https://serverest.dev
+   ADMIN_DEFAULT_EMAIL=admin@mail.com
+   ADMIN_DEFAULT_PASSWORD=pass@word
+   ```
 
 ## Executando a Aplicação
 
-1. Construa e inicie os contêineres Docker:
+### Com Docker (Recomendado)
+
+1. Construa e inicie os contêineres:
 
    ```sh
    docker-compose up --build
    ```
 
-2. Acesse a aplicação em `http://localhost:8000`.
+2. Acesse a aplicação em `http://localhost:8000`
 
-### Executando a Aplicação (Localmente sem Docker)
+### Localmente (Desenvolvimento)
 
-1. Localmente com seu ambiente python, instale a lista de pacotes.
+1. **Instale o PostgreSQL (obrigatório para testes):**
+
+   **Ubuntu/Debian:**
+
+   ```sh
+   sudo apt update
+   sudo apt install postgresql postgresql-contrib postgresql-client
+   ```
+
+   **macOS (com Homebrew):**
+
+   ```sh
+   brew install postgresql
+   ```
+
+   **Windows:**
+
+   - Baixe e instale do [site oficial do PostgreSQL](https://www.postgresql.org/download/windows/)
+
+2. **Verificar instalação do PostgreSQL:**
+
+   ```sh
+   pg_ctl --version
+   # Deve retornar a versão instalada
+   ```
+
+3. Crie e ative o ambiente virtual:
+
+   ```sh
+   python3 -m venv venv
+   source venv/bin/activate  # Linux/Mac
+   # ou
+   venv\Scripts\activate     # Windows
+   ```
+
+4. Instale as dependências:
+
+   ```sh
+   pip install -r requirements-dev.txt
+   ```
+
+5. Execute as migrações do banco:
+
+   ```sh
+   alembic upgrade head
+   ```
+
+6. Inicie o servidor:
+   ```sh
+   uvicorn app.main:app --reload
+   # ou
+   make runserver
+   ```
+
+## Usuário Administrador Padrão
+
+Para criar o usuário administrador inicial, execute:
 
 ```sh
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requeriments-dev.txt
+python scripts/create_admin.py
 ```
 
-2. Após isso utilize o comando:
+Credenciais padrão:
+
+- **Email**: admin@mail.com
+- **Senha**: pass@word
+
+## Exemplos de Uso da API
+
+### Autenticação
 
 ```sh
-uvicorn app.main:app
-OU
-# Caso você possua o make instalado
-make runserver
-# Caso não tenha, você pode instalar por meio do comando: sudo apt install make
+# Login e obter token JWT
+POST /auth/token
+{
+  "email": "admin@mail.com",
+  "password": "pass@word"
+}
 ```
 
-3. Com isso o projeto já estará funcionando.
-
-## Exemplo de uso:
-
-Podemos utiliza-lo para fazermos os testes no projeto, ou apenas para pegar os valores
-de referencia para utilização em um
-
-Exemplo dos endpoints:
+### Gerenciamento de Clientes
 
 ```sh
-/api/v1/words/sort :: para retorno das palavras ordenado
-/api/v1/words/vowel_count :: para contagem das vogais das palavras passadas.
+# Criar cliente (público)
+POST /customers
+{
+  "email": "user@example.com",
+  "password": "senha123",
+  "name": "João Silva"
+}
+
+# Listar clientes (apenas admin)
+GET /customers
+Authorization: Bearer <token>
+
+# Obter cliente específico (próprio usuário ou admin)
+GET /customers/{customer_id}
+Authorization: Bearer <token>
+
+# Atualizar cliente (próprio usuário ou admin)
+PUT /customers/{customer_id}
+Authorization: Bearer <token>
+{
+  "name": "João Santos",
+  "email": "joao.santos@example.com"
+}
+
+# Deletar cliente (apenas admin)
+DELETE /customers/{customer_id}
+Authorization: Bearer <token>
+```
+
+### Sistema de Favoritos
+
+```sh
+# Adicionar produto aos favoritos
+POST /customers/{customer_id}/favorites
+Authorization: Bearer <token>
+{
+  "external_id": "123"
+}
+
+# Remover produto dos favoritos
+DELETE /customers/{customer_id}/favorites/{product_id}
+Authorization: Bearer <token>
+
+# Obter perfil com favoritos inclusos
+GET /customers/{customer_id}
+Authorization: Bearer <token>
 ```
 
 ## Documentação da API
 
-A aplicação possui Swagger para documentação da API. Acesse a documentação em `http://localhost:8000/swagger/`.
+- **Swagger UI**: `http://localhost:8000/docs`
+- **ReDoc**: `http://localhost:8000/redoc`
+- **OpenAPI JSON**: `http://localhost:8000/openapi.json`
 
 ## Testes
 
-Para rodar os testes, use o seguinte comando:
+**⚠️ IMPORTANTE:** Para executar testes, instale o PostgreSQL:
+
+```sh
+# Ubuntu/Debian
+sudo apt update
+sudo apt install postgresql-all
+
+# Ou apenas o necessário:
+sudo apt install postgresql postgresql-client-common postgresql-common
+
+# Verificar se funcionou:
+pg_ctl --version
+```
+
+### Executar todos os testes:
 
 ```sh
 make coverage
 ```
 
+### Executar com cobertura:
+
+```sh
+make coverage
+# ou
+pytest --cov=app --cov-report=html
+```
+
+### Executar testes específicos:
+
+```sh
+# Testes de integração
+pytest tests/integration/
+
+# Testes de clientes
+pytest tests/integration/api/v1/customers/
+
+# Teste específico
+pytest tests/integration/api/v1/customers/test_customer.py::test_create_and_get_customer
+```
+
+## Estrutura do Projeto
+
+```
+app/
+├── api/v1/                 # Endpoints da API
+│   ├── auth/              # Rotas de autenticação
+│   └── customers/         # Rotas de clientes
+├── core/                  # Configurações centrais
+├── database/              # Modelos e repositórios
+│   ├── models/           # Modelos SQLAlchemy
+│   └── repositories/     # Padrão Repository
+├── schemas/               # Schemas Pydantic
+│   ├── auth.py           # Schemas de autenticação
+│   └── domain/           # Schemas de domínio
+├── services/              # Lógica de negócio
+│   ├── auth/             # Serviços de autenticação
+│   ├── domain/           # Serviços de domínio
+│   └── external/         # Integrações externas
+└── exceptions/            # Exceções customizadas
+```
+
+## Tecnologias Utilizadas
+
+- **FastAPI** - Framework web moderno e rápido
+- **SQLAlchemy** - ORM para Python
+- **PostgreSQL** - Banco de dados relacional
+- **JWT** - Autenticação via tokens
+- **Pydantic** - Validação de dados
+- **pytest** - Framework de testes
+- **Docker** - Containerização
+- **Alembic** - Migrações de banco
+
 ## Ferramentas de Desenvolvimento
 
-Esta aplicação utiliza as seguintes ferramentas de desenvolvimento:
+- **Ruff** - Linting e formatação
+- **pre-commit** - Hooks de commit
+- **ipdb** - Debugging
+- **pytest-cov** - Cobertura de testes
 
-- pre-commit para hooks de commit
-- Ruff para linting e formatação de código
-- ipdb para debugging
+## Contribuição
 
-<!-- Markdown link & img dfn's -->
+1. Fork o projeto
+2. Crie uma branch para sua feature (`git checkout -b feature/nova-feature`)
+3. Commit suas mudanças (`git commit -am 'Adiciona nova feature'`)
+4. Push para a branch (`git push origin feature/nova-feature`)
+5. Abra um Pull Request
 
-[python-image]: https://img.shields.io/badge/python-3670A0?style=flat-square&logo=python&logoColor=ffdd54
-[python-url]: https://www.python.org/
-[fastApi-image]: https://img.shields.io/badge/FastAPI-005571?style=flat-square&logo=fastapi
-[fastApi-url]: https://fastapi.tiangolo.com/
-[uvicorn-url]: https://www.uvicorn.org/
-[pydantic-url]: https://docs.pydantic.dev/latest/
-[fastapi-image]: https://img.shields.io/badge/FastAPI-005571?style=flat-square&logo=fastapi
-[coverage-image]: https://coverage-badge.samuelcolvin.workers.dev/tiangolo/fastapi.svg
+## Licença
+
+Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.

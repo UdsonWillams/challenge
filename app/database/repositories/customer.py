@@ -18,7 +18,14 @@ class CustomerRepository(BaseRepository[Customer]):
 
     async def get_user_by_email(self, email: str) -> Customer | None:
         session = await self.uow.get_session()
-        query = select(self.model).filter(self.model.email == email)
+        query = (
+            select(self.model)
+            .filter(self.model.email == email)
+            .filter(
+                self.model.deleted_at.is_(None),
+                self.model.deleted_by.is_(None),
+            )
+        )
         result = await session.execute(query)
         return result.scalar_one_or_none()
 
@@ -128,6 +135,10 @@ class CustomerRepository(BaseRepository[Customer]):
                 select(self.model)
                 .options(selectinload(self.model.favorites))
                 .filter(self.model.id == customer_id)
+                .filter(
+                    self.model.deleted_at.is_(None),
+                    self.model.deleted_by.is_(None),
+                )
             )
             result = await session.execute(query)
             return result.scalar_one_or_none()
@@ -142,6 +153,10 @@ class CustomerRepository(BaseRepository[Customer]):
                 select(self.model)
                 .options(selectinload(self.model.favorites))
                 .filter(self.model.email == email)
+                .filter(
+                    self.model.deleted_at.is_(None),
+                    self.model.deleted_by.is_(None),
+                )
             )
             result = await session.execute(query)
             return result.scalar_one_or_none()
