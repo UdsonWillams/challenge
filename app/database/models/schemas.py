@@ -7,7 +7,6 @@ Ex.: model_dump, model_dump_json
 """
 
 from datetime import datetime
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel as PydanticBase
@@ -39,7 +38,7 @@ class Product(BaseModel):
     external_id: str
     title: str
     price: float
-    description: Optional[str] = None
-    category: Optional[str] = None
-    image: Optional[str] = None
-    review: Optional[float] = None
+    description: str | None = None
+    category: str | None = None
+    image: str | None = None
+    review: float | None = None

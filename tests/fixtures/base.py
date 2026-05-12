@@ -4,8 +4,7 @@ import uuid
 import pytest_asyncio
 from passlib.context import CryptContext
 
-from app.database.models.base import Customer
-from app.schemas.external.fake_products.products import Products
+from app.database.models.base import Customer, Product
 
 sys.path.append("app/")
 
@@ -71,7 +70,7 @@ async def some_customers(async_session):
 
 @pytest_asyncio.fixture(scope="function")
 async def products(async_session, customer):
-    base_entity = Products(
+    base_entity = Product(
         id=uuid.uuid4(),
         title="Test Product",
         description="This is a test product",

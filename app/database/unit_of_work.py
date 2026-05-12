@@ -1,5 +1,5 @@
 import json
-from typing import AsyncGenerator, Optional
+from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
@@ -8,8 +8,8 @@ from app.core.logger import logger
 from app.core.settings import get_settings
 
 # Global engine and session factory for reuse
-_engine: Optional[AsyncEngine] = None
-_session_factory: Optional[sessionmaker] = None
+_engine: AsyncEngine | None = None
+_session_factory: sessionmaker | None = None
 settings = get_settings()
 
 
@@ -23,16 +23,14 @@ async def _get_engine_and_factory():
             echo=False,
             json_serializer=lambda obj: json.dumps(obj, ensure_ascii=False),
         )
-        _session_factory = sessionmaker(
-            autocommit=False, autoflush=False, bind=_engine, class_=AsyncSession
-        )
+        _session_factory = sessionmaker(autocommit=False, autoflush=False, bind=_engine, class_=AsyncSession)
     return _engine, _session_factory
 
 
 class UnitOfWorkConnection:
     """Unit of Work pattern for managing database transactions."""
 
-    def __init__(self, session: Optional[AsyncSession] = None) -> None:
+    def __init__(self, session: AsyncSession | None = None) -> None:
         """Initialize Unit of Work.
 
         Args:

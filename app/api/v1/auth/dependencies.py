@@ -1,17 +1,15 @@
 from fastapi import Depends
-from fastapi.security import (  # substitui OAuth2PasswordBearer
+from fastapi.security import (
     HTTPAuthorizationCredentials,
     HTTPBearer,
 )
 
 from app.database.repositories.customer import CustomerRepository
 from app.database.unit_of_work import UnitOfWorkConnection, get_uow
-from app.exceptions.exceptions import UnauthorizedError
+from app.exceptions.exceptions import ForbiddenError, UnauthorizedError
 from app.schemas.auth import AuthenticatedUser, RoleEnum
 from app.services.auth.authentication import AuthService, get_auth_service
 
-# Explicação: OAuth2PasswordBearer pede email/senha no Swagger para trocar por token.
-# Como o fluxo aqui já expõe um endpoint JSON de login, usamos HTTPBearer para apenas aceitar "Authorization: Bearer <token>".
 http_bearer = HTTPBearer()
 
 
@@ -35,5 +33,5 @@ def require_admin(
     user: AuthenticatedUser = Depends(get_current_user),
 ) -> AuthenticatedUser:
     if user.role != RoleEnum.admin:
-        raise UnauthorizedError
+        raise ForbiddenError("Admin access required")
     return user

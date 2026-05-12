@@ -1,4 +1,5 @@
 from contextvars import ContextVar
+from logging import getLogger
 from uuid import uuid4
 
 from starlette.types import (
@@ -11,6 +12,7 @@ from starlette.types import (
 TRACE_ID_CTX_KEY = "trace_id"
 
 _trace_id_ctx_var: ContextVar[str] = ContextVar(TRACE_ID_CTX_KEY, default=None)
+_logger = getLogger(__name__)
 
 
 class CreateTraceIdMiddleware:
@@ -36,8 +38,8 @@ class CreateTraceIdMiddleware:
                 if header_name.decode().lower() == "x-trace-id":
                     trace_id = header_value.decode()
                     break
-        except Exception:  # nosec
-            pass
+        except Exception:
+            _logger.debug("Failed to parse trace-id header", exc_info=True)
 
         trace_id = _trace_id_ctx_var.set(trace_id)
         await self.app(scope, receive, send)

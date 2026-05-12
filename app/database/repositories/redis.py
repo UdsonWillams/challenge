@@ -1,6 +1,6 @@
 import json
 
-from redis import Redis
+from redis.asyncio import Redis
 
 from app.core.logger import logger
 from app.core.settings import get_settings
@@ -12,47 +12,58 @@ settings = get_settings()
 
 class RedisRepository:
     def __init__(self, ttl=TWO_HOURS) -> None:
-        self.client = Redis(
-            host=settings.REDIS_HOST, port=settings.REDIS_PORT, decode_responses=True
-        )
+        self._client = None
         self.ttl = ttl
 
-    def create(self, key, value):
+    async def _get_client(self) -> Redis:
+        if self._client is None:
+            self._client = Redis(
+                host=settings.REDIS_HOST,
+                port=settings.REDIS_PORT,
+                decode_responses=True,
+            )
+        return self._client
+
+    async def create(self, key, value):
         try:
-            return self.client.set(key, json.dumps(value), ex=self.ttl)
+            client = await self._get_client()
+            return await client.set(key, json.dumps(value), ex=self.ttl)
         except Exception as error:
             logger.error(
                 "Error setting cache",
                 exc_info=True,
-                stack_info=True,
                 extra={"error": error},
             )
             raise RepositoryError
 
-    def get(self, key):
+    async def get(self, key):
         try:
-            if not self.client.exists(key):
+            client = await self._get_client()
+            if not await client.exists(key):
                 return None
-            value = self.client.get(key)
-            decoded_value = json.loads(value)
-            return decoded_value
+            value = await client.get(key)
+            return json.loads(value)
         except Exception as error:
             logger.error(
                 f"Error get cache - {error}",
                 exc_info=True,
-                stack_info=True,
                 extra={"error": error},
             )
             return None
 
-    def delete(self, key):
+    async def delete(self, key):
         try:
-            return self.client.delete(key)
+            client = await self._get_client()
+            return await client.delete(key)
         except Exception as error:
             logger.error(
                 f"Error deleting cache - {error}",
                 exc_info=True,
-                stack_info=True,
                 extra={"error": error},
             )
             raise RepositoryError
+
+    async def close(self):
+        if self._client is not None:
+            await self._client.close()
+            self._client = None

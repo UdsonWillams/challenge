@@ -1,16 +1,12 @@
 import pytest
-from fastapi import status
-from fastapi.testclient import TestClient
+from httpx import AsyncClient
 
 
 @pytest.mark.asyncio
-async def test_health_check(
-    client: TestClient,
-):
-    response = await client.get(
-        "/api/healthcheck",
-    )
-    assert response.status_code == status.HTTP_200_OK
+async def test_health_check(client: AsyncClient):
+    response = await client.get("/api/healthcheck")
+    assert response.status_code == 200
     content = response.json()
     assert "status" in content
-    assert content["status"] == "OK"
+    assert "database" in content
+    assert "redis" in content

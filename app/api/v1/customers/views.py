@@ -1,10 +1,11 @@
+from http import HTTPStatus
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 
 from app.api.v1.auth.dependencies import get_current_user, require_admin
 from app.database.unit_of_work import UnitOfWorkConnection, get_uow
-from app.exceptions.exceptions import UnauthorizedError
+from app.exceptions.exceptions import ForbiddenError, NotFoundError
 from app.schemas.auth import AuthenticatedUser
 from app.schemas.domain.customers import input, output
 from app.schemas.domain.favorites import FavoriteCreate, FavoriteProductResponse
@@ -16,17 +17,15 @@ router = APIRouter(prefix="/customers", tags=["Customers"])
 @router.post(
     "",
     response_model=output.CreateCustomerResponse,
-    status_code=status.HTTP_201_CREATED,
+    status_code=HTTPStatus.CREATED,
 )
-async def create_customer(
-    payload: input.CreateCustomer, uow: UnitOfWorkConnection = Depends(get_uow)
-):
+async def create_customer(payload: input.CreateCustomer, uow: UnitOfWorkConnection = Depends(get_uow)):
     service = CustomerService(uow)
     response = await service.create_customer(payload)
     return response
 
 
-@router.get("", response_model=output.CustomerList, status_code=status.HTTP_200_OK)
+@router.get("", response_model=output.CustomerList, status_code=HTTPStatus.OK)
 async def list_customers(
     page_size: int = 100,
     page: int = 1,
@@ -35,16 +34,14 @@ async def list_customers(
     uow: UnitOfWorkConnection = Depends(get_uow),
 ):
     service = CustomerService(uow)
-    response = await service.list_all(
-        sort_by=sort_by, filters={}, page=page, page_size=page_size
-    )
+    response = await service.list_all(sort_by=sort_by, filters={}, page=page, page_size=page_size)
     return response
 
 
 @router.get(
     "/{customer_id}",
     response_model=output.CustomerResponse,
-    status_code=status.HTTP_200_OK,
+    status_code=HTTPStatus.OK,
 )
 async def get_customer(
     customer_id: UUID,
@@ -59,7 +56,7 @@ async def get_customer(
 @router.get(
     "/email/{customer_email}",
     response_model=output.CustomerResponse,
-    status_code=status.HTTP_200_OK,
+    status_code=HTTPStatus.OK,
 )
 async def get_customer_by_email(
     email: str,
@@ -74,7 +71,7 @@ async def get_customer_by_email(
 @router.put(
     "/{customer_id}",
     response_model=output.CustomerResponse,
-    status_code=status.HTTP_200_OK,
+    status_code=HTTPStatus.OK,
 )
 async def update_customer(
     customer_id: UUID,
@@ -87,7 +84,7 @@ async def update_customer(
     return updated
 
 
-@router.delete("/{customer_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{customer_id}", status_code=HTTPStatus.NO_CONTENT)
 async def delete_customer(
     customer_id: UUID,
     admin: AuthenticatedUser = Depends(require_admin),
@@ -101,7 +98,7 @@ async def delete_customer(
 @router.post(
     "/{customer_id}/favorites",
     response_model=FavoriteProductResponse,
-    status_code=status.HTTP_201_CREATED,
+    status_code=HTTPStatus.CREATED,
 )
 async def add_favorite(
     customer_id: UUID,
@@ -110,7 +107,7 @@ async def add_favorite(
     uow: UnitOfWorkConnection = Depends(get_uow),
 ):
     if not (current_user.role == "admin" or str(current_user.id) == str(customer_id)):
-        raise UnauthorizedError
+        raise ForbiddenError("You can only manage your own favorites")
     service = CustomerService(uow, current_user)
     product = await service.add_favorite(customer_id, payload)
     return product
@@ -118,7 +115,7 @@ async def add_favorite(
 
 @router.delete(
     "/{customer_id}/favorites/{product_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
+    status_code=HTTPStatus.NO_CONTENT,
 )
 async def remove_favorite(
     customer_id: UUID,
@@ -127,9 +124,9 @@ async def remove_favorite(
     uow: UnitOfWorkConnection = Depends(get_uow),
 ):
     if not (current_user.role == "admin" or str(current_user.id) == str(customer_id)):
-        raise UnauthorizedError
+        raise ForbiddenError("You can only manage your own favorites")
     service = CustomerService(uow, current_user)
     removed = await service.remove_favorite(customer_id, product_id)
     if not removed:
-        raise HTTPException(status_code=404, detail="Favorite not found")
+        raise NotFoundError("Favorite not found")
     return None

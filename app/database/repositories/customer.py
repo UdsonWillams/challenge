@@ -1,5 +1,5 @@
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -55,9 +55,7 @@ class CustomerRepository(BaseRepository[Customer]):
                 return None
 
             for key, value in data.items():
-                if (key == "id" or key == "favorites") or not hasattr(
-                    existing_record, key
-                ):
+                if (key == "id" or key == "favorites") or not hasattr(existing_record, key):
                     continue
                 setattr(existing_record, key, value)
 
@@ -65,11 +63,9 @@ class CustomerRepository(BaseRepository[Customer]):
                 from app.services.auth.authentication import AuthService
 
                 crypt_service = AuthService()
-                existing_record.password = await crypt_service.get_password_hash(
-                    data["password"]
-                )
+                existing_record.password = await crypt_service.get_password_hash(data["password"])
 
-            existing_record.updated_at = datetime.now(timezone.utc)
+            existing_record.updated_at = datetime.now(UTC)
             existing_record.updated_by = updated_by
 
             await session.commit()
@@ -92,9 +88,7 @@ class CustomerRepository(BaseRepository[Customer]):
             raise RepositoryError("Customer not found")
 
         ext_id = data.get("external_id")
-        existing_q = select(Product).filter(
-            Product.external_id == ext_id, Product.customer_id == customer_id
-        )
+        existing_q = select(Product).filter(Product.external_id == ext_id, Product.customer_id == customer_id)
         existing_res = await session.execute(existing_q)
         existing = existing_res.scalar_one_or_none()
         if existing:
@@ -117,9 +111,7 @@ class CustomerRepository(BaseRepository[Customer]):
 
     async def remove_favorite(self, customer_id, product_id) -> bool:
         session = await self.uow.get_session()
-        q = select(Product).filter(
-            Product.id == product_id, Product.customer_id == customer_id
-        )
+        q = select(Product).filter(Product.id == product_id, Product.customer_id == customer_id)
         res = await session.execute(q)
         product = res.scalar_one_or_none()
         if not product:
@@ -128,7 +120,7 @@ class CustomerRepository(BaseRepository[Customer]):
         await session.commit()
         return True
 
-    async def get_by_id_with_favorites(self, customer_id: Any) -> Optional[Customer]:
+    async def get_by_id_with_favorites(self, customer_id: Any) -> Customer | None:
         try:
             session = await self.uow.get_session()
             query = (
@@ -146,7 +138,7 @@ class CustomerRepository(BaseRepository[Customer]):
             logger.error(f"Error getting {self.model.__name__} with favorites: {e}")
             return None
 
-    async def get_by_email_with_favorites(self, email: str) -> Optional[Customer]:
+    async def get_by_email_with_favorites(self, email: str) -> Customer | None:
         try:
             session = await self.uow.get_session()
             query = (
@@ -161,7 +153,5 @@ class CustomerRepository(BaseRepository[Customer]):
             result = await session.execute(query)
             return result.scalar_one_or_none()
         except Exception as e:
-            logger.error(
-                f"Error getting {self.model.__name__} by email with favorites: {e}"
-            )
+            logger.error(f"Error getting {self.model.__name__} by email with favorites: {e}")
             return None

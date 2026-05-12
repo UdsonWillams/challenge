@@ -5,10 +5,8 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    # Settings Configuration
     model_config = {"extra": "ignore"}
 
-    # Application Configuration
     APP_CORS: str = "*"
 
     @property
@@ -16,54 +14,52 @@ class Settings(BaseSettings):
         return self.APP_CORS.split(";")
 
     APP_ENVIRONMENT: str = "production"
-    LOG_ENVIROMENT: str = "INFO"
+    LOG_ENVIRONMENT: str = "INFO"
     HOST: str = "localhost"
     PORT: str = "8000"
     WORKERS: int = 3
 
-    # Alembic
     APP_MIGRATIONS_FOLDER: str = "./migrations"
 
-    # Mongo
-    MONGO_USER: str = "root"
-    MONGO_PASSWORD: str = "pass"
-    MONGO_PORT: int = 27017
-
-    # Database
     POSTGRES_USER: str = "myuser"
     POSTGRES_PASSWORD: str = "mypassword"
     POSTGRES_DB: str = "challenger_db"
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: str = "5432"
 
-    # Redis
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
 
     @property
-    def DATABASE_URL(self):  # pragma: no cover
+    def DATABASE_URL(self):
         return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
     @property
-    def DATABASE_URL_SYNC(self):  # pragma: no cover
+    def DATABASE_URL_SYNC(self):
         return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
-    # fake store api
     EXTERNAL_PRODUCTS_BASE_URL: str = "https://serverest.dev"
 
-    # Security (pode sobrescrever via .env: SECRET_KEY, ACCESS_TOKEN_EXPIRE_MINUTES)
     SECRET_KEY: str = "sua-chave-secreta-super-segura-aqui-mude-em-producao"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     @property
     def ACCESS_TOKEN_EXPIRE_DELTA(self) -> timedelta:
         return timedelta(minutes=self.ACCESS_TOKEN_EXPIRE_MINUTES)
 
-    # Admin to validations purposes
+    @property
+    def REFRESH_TOKEN_EXPIRE_DELTA(self) -> timedelta:
+        return timedelta(days=self.REFRESH_TOKEN_EXPIRE_DAYS)
+
     ADMIN_DEFAULT_EMAIL: str = "admin@mail.com"
     ADMIN_DEFAULT_PASSWORD: str = "pass@word"
     ADMIN_DEFAULT_ROLE: str = "admin"
+
+    RATE_LIMIT_PER_SECOND: int = 5
+    RATE_LIMIT_PER_MINUTE: int = 60
+    RATE_LIMIT_PER_HOUR: int = 1000
 
 
 @lru_cache

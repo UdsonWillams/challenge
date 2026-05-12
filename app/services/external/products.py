@@ -1,4 +1,5 @@
-from fastapi import status
+from http import HTTPStatus
+
 from httpx import AsyncClient, Response
 
 from app.core.logger import logger
@@ -14,36 +15,29 @@ class ProductsApiService:
     def __init__(self):
         self.cache = RedisRepository()
 
-    async def _execute(
-        self, url: str, method: str, headers: str = None, params: str = None
-    ) -> Response:
+    async def _execute(self, url: str, method: str, headers: str = None, params: str = None) -> Response:
         async with AsyncClient(timeout=15) as http_client:
-            request = http_client.build_request(
-                method, url, headers=headers, params=params
-            )
+            request = http_client.build_request(method, url, headers=headers, params=params)
             response = await http_client.send(request)
         return response
 
     async def get_products(self) -> list[ProductsResponse]:
         url = f"{settings.EXTERNAL_PRODUCTS_BASE_URL}/produtos"
-        data: dict = self.cache.get("products")
+        data: dict = await self.cache.get("products")
         all_products = []
         if not data:
             response = await self._execute(url, "GET")
-            if response.status_code != status.HTTP_200_OK:
+            if response.status_code != HTTPStatus.OK:
                 logger.error(
                     f"Get Products error | Status: {response.status_code} | Response: {response.text}",
                     extra={"response": response.text},
                 )
                 raise ApiInvalidResponseException()
-            self.cache.create("products", response.json())
-        for product in data.get("produtos"):
+            data = response.json()
+            await self.cache.create("products", data)
+        for product in data.get("produtos", []):
             try:
-                all_products.append(
-                    ExternalProductResponse.model_validate(product).model_dump(
-                        mode="json"
-                    )
-                )
+                all_products.append(ExternalProductResponse.model_validate(product).model_dump(mode="json"))
             except Exception as e:
                 logger.error(f"Error parsing product data: {e}", extra={"error": e})
                 continue
@@ -51,15 +45,15 @@ class ProductsApiService:
 
     async def get_product(self, product_id: int) -> ProductsResponse:
         url = f"{settings.EXTERNAL_PRODUCTS_BASE_URL}/produtos/{product_id}"
-        data = self.cache.get(product_id)
+        data = await self.cache.get(str(product_id))
         if not data:
             response = await self._execute(url, "GET")
-            if response.status_code != status.HTTP_200_OK:
+            if response.status_code != HTTPStatus.OK:
                 logger.error(
                     f"Get Product {product_id} error | Status: {response.status_code} | Response: {response.text}",
                     extra={"response": response.text},
                 )
                 raise ApiInvalidResponseException()
             data = response.json()
-            self.cache.create(product_id, data)
+            await self.cache.create(str(product_id), data)
         return ExternalProductResponse.model_validate(data).model_dump(mode="json")

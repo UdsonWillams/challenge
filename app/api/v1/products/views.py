@@ -1,5 +1,3 @@
-from typing import List
-
 from fastapi import APIRouter
 
 from app.schemas.domain.products import output
@@ -15,7 +13,7 @@ async def get_product(product_id: str):
     return product
 
 
-@router.get("", response_model=List[output.ProductsResponse])
+@router.get("", response_model=list[output.ProductsResponse])
 async def get_products():
     service = ProductsApiService()
     product = await service.get_products()

@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import Boolean, Column, Float, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
@@ -14,20 +14,14 @@ class BaseModel(Base):
     __abstract__ = True
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     created_by = Column(String(150), nullable=False, default="system")
-    created_at = Column(
-        type_=TIMESTAMP(timezone=True), default=lambda: datetime.now(timezone.utc)
-    )
+    created_at = Column(type_=TIMESTAMP(timezone=True), default=lambda: datetime.now(UTC))
     updated_by = Column(String(150), nullable=False, default="system")
-    updated_at = Column(
-        type_=TIMESTAMP(timezone=True), default=lambda: datetime.now(timezone.utc)
-    )
+    updated_at = Column(type_=TIMESTAMP(timezone=True), default=lambda: datetime.now(UTC))
     deleted_by = Column(String(150), nullable=True)
     deleted_at = Column(type_=TIMESTAMP(timezone=True), nullable=True)
 
     def to_dict(self):
-        return {
-            column.name: getattr(self, column.name) for column in self.__table__.columns
-        }
+        return {column.name: getattr(self, column.name) for column in self.__table__.columns}
 
 
 class Customer(BaseModel):
@@ -39,9 +33,7 @@ class Customer(BaseModel):
     name = Column(String(150), nullable=False)
     role = Column(String(50), nullable=False, default="user")
 
-    favorites = relationship(
-        "Product", back_populates="customer", cascade="all, delete-orphan"
-    )
+    favorites = relationship("Product", back_populates="customer", cascade="all, delete-orphan")
 
 
 class Product(BaseModel):

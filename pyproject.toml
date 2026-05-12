@@ -2,13 +2,63 @@
 requires = ["poetry-core>=1.0"]
 build-backend = "poetry.core.masonry.api"
 
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "I",
+    "N",
+    "W",
+    "UP",
+    "YTT",
+    "S",
+    "BLE",
+    "B",
+    "C4",
+]
+ignore = [
+    "S101",
+    "S104",
+    "S105",
+    "S106",
+    "B008",
+    "B006",
+    "B904",
+    "BLE001",
+    "N802",
+    "N806",
+    "N818",
+    "UP042",
+    "UP046",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.ruff.format]
+line-ending = "lf"
+
 [tool.bandit]
-exclude_dirs = ["tests", "path/to/file"]
-tests = ["B201", "B301"]
-skips = ["B101", "B601"]
+exclude_dirs = ["tests"]
+skips = ["B101"]
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "function"
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+exclude = ["tests/"]
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["tests/*", "migrations/*"]
 
 [tool.poetry.dependencies]
 bcrypt = "4.0.1"

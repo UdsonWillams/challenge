@@ -13,9 +13,7 @@ class ResponseTimeMiddleware(BaseHTTPMiddleware):
     resposta dos endpoints chamados.
     """
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         initial_time = time()
         response = await call_next(request)
         final_time = time() - initial_time

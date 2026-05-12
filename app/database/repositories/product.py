@@ -13,7 +13,7 @@ class ProductRepository(BaseRepository[Product]):
 
     async def get_by_external_id(self, external_id: str) -> Product:
         session = await self.uow.get_session()
-        query = select(self.model).filter(self.model.external_id == external_id).first()
+        query = select(self.model).filter(self.model.external_id == external_id)
         result = await session.execute(query)
         try:
             return result.scalar_one_or_none()

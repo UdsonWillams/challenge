@@ -1,6 +1,6 @@
 import asyncio
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -24,20 +24,27 @@ class AuthService:
     async def verify_password(self, plain: str, hashed: str) -> bool:
         return await asyncio.to_thread(pwd_context.verify, plain, hashed)
 
-    async def create_access_token(
-        self, subject: str, extra: Optional[Dict[str, Any]] = None
-    ) -> str:
-        now_utc = datetime.now(timezone.utc)
+    async def _encode_token(self, subject: str, expire_delta, extra: dict[str, Any] | None = None) -> str:
+        now_utc = datetime.now(UTC)
         to_encode: dict = {"sub": subject, "iat": int(now_utc.timestamp())}
         if extra:
             to_encode.update(extra)
-        expire_dt = now_utc + self.settings.ACCESS_TOKEN_EXPIRE_DELTA
+        expire_dt = now_utc + expire_delta
         to_encode["exp"] = int(expire_dt.timestamp())
-        return await asyncio.to_thread(
-            jwt.encode, to_encode, self.settings.SECRET_KEY, self.settings.ALGORITHM
-        )
+        to_encode["type"] = extra.get("type", "access") if extra else "access"
+        return await asyncio.to_thread(jwt.encode, to_encode, self.settings.SECRET_KEY, self.settings.ALGORITHM)
 
-    async def decode_access_token(self, token: str) -> Optional[str]:
+    async def create_access_token(self, subject: str, extra: dict[str, Any] | None = None) -> str:
+        merged = extra or {}
+        merged["type"] = "access"
+        return await self._encode_token(subject, self.settings.ACCESS_TOKEN_EXPIRE_DELTA, merged)
+
+    async def create_refresh_token(self, subject: str, extra: dict[str, Any] | None = None) -> str:
+        merged = extra or {}
+        merged["type"] = "refresh"
+        return await self._encode_token(subject, self.settings.REFRESH_TOKEN_EXPIRE_DELTA, merged)
+
+    async def decode_access_token(self, token: str) -> str | None:
         try:
             payload = await asyncio.to_thread(
                 jwt.decode,
@@ -45,13 +52,27 @@ class AuthService:
                 self.settings.SECRET_KEY,
                 [self.settings.ALGORITHM],
             )
+            if payload.get("type") != "access":
+                return None
             return payload.get("sub")
         except JWTError:
             return None
 
-    async def authenticate(
-        self, email: str, password: str, uow: UnitOfWorkConnection
-    ) -> Customer | None:
+    async def decode_refresh_token(self, token: str) -> str | None:
+        try:
+            payload = await asyncio.to_thread(
+                jwt.decode,
+                token,
+                self.settings.SECRET_KEY,
+                [self.settings.ALGORITHM],
+            )
+            if payload.get("type") != "refresh":
+                return None
+            return payload.get("sub")
+        except JWTError:
+            return None
+
+    async def authenticate(self, email: str, password: str, uow: UnitOfWorkConnection) -> Customer | None:
         repository = CustomerRepository(uow)
         user = await repository.get_user_by_email(email)
         if not user:
@@ -64,8 +85,9 @@ class AuthService:
         repo = CustomerRepository(uow)
         user = await repo.get_user_by_email(email)
         role = getattr(user, "role", RoleEnum.user) if user else RoleEnum.user
-        token_str = await self.create_access_token(subject=email, extra={"role": role})
-        return Token(access_token=token_str)
+        access_token = await self.create_access_token(subject=email, extra={"role": role})
+        refresh_token = await self.create_refresh_token(subject=email, extra={"role": role})
+        return Token(access_token=access_token, refresh_token=refresh_token)
 
 
 def get_auth_service() -> AuthService:

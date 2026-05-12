@@ -1,5 +1,5 @@
-from datetime import datetime, timezone
-from typing import Generic, Optional, Type, TypeVar
+from datetime import UTC, datetime
+from typing import Generic, TypeVar
 from uuid import UUID
 
 from sqlalchemy import desc, func, or_, select
@@ -13,11 +13,11 @@ T = TypeVar("T", bound=Base)  # type: ignore
 
 
 class BaseRepository(Generic[T]):
-    def __init__(self, model: Type[T], uow: UnitOfWorkConnection):
+    def __init__(self, model: type[T], uow: UnitOfWorkConnection):
         self.model = model
         self.uow = uow
 
-    async def get_by_id(self, id: UUID) -> Optional[T]:
+    async def get_by_id(self, id: UUID) -> T | None:
         try:
             session = await self.uow.get_session()
             query = (
@@ -45,7 +45,7 @@ class BaseRepository(Generic[T]):
             logger.error(f"Error creating {self.model.__name__}: {e}")
             raise RepositoryError
 
-    async def update(self, id: UUID, data: dict, updated_by="system") -> Optional[T]:
+    async def update(self, id: UUID, data: dict, updated_by="system") -> T | None:
         try:
             session = await self.uow.get_session()
             query = select(self.model).filter(self.model.id == id)
@@ -60,7 +60,7 @@ class BaseRepository(Generic[T]):
                     continue
                 setattr(existing_record, key, value)
 
-            existing_record.updated_at = datetime.now(timezone.utc)
+            existing_record.updated_at = datetime.now(UTC)
             existing_record.updated_by = updated_by
 
             await session.commit()
@@ -83,7 +83,7 @@ class BaseRepository(Generic[T]):
             if hard_delete:
                 await session.delete(existing_record)
             else:
-                existing_record.deleted_at = datetime.now(timezone.utc)
+                existing_record.deleted_at = datetime.now(UTC)
                 existing_record.deleted_by = deleted_by
 
             await session.commit()

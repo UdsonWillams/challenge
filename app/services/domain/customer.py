@@ -52,11 +52,7 @@ class CustomerService:
         return result
 
     async def update(self, customer_id: int, payload: dict):
-        if (
-            self.user
-            and str(self.user.id) != str(customer_id)
-            and self.user.role != "admin"
-        ):
+        if self.user and str(self.user.id) != str(customer_id) and self.user.role != "admin":
             raise UnauthorizedError
         updated_customer = await self.repository.update(
             customer_id, payload, self.user.email if self.user else "system"
@@ -66,21 +62,13 @@ class CustomerService:
         return updated_customer.to_dict()
 
     async def delete(self, customer_id: int):
-        if (
-            self.user
-            and str(self.user.id) != str(customer_id)
-            and self.user.role != "admin"
-        ):
+        if self.user and str(self.user.id) != str(customer_id) and self.user.role != "admin":
             raise UnauthorizedError
         if not await self.repository.delete(customer_id):
             raise NotFoundError
 
     async def add_favorite(self, customer_id: UUID, payload: FavoriteCreate):
-        if (
-            self.user
-            and str(self.user.id) != str(customer_id)
-            and self.user.role != "admin"
-        ):
+        if self.user and str(self.user.id) != str(customer_id) and self.user.role != "admin":
             raise UnauthorizedError
         products_service = ProductsApiService()
         product_external = await products_service.get_product(payload.external_id)
@@ -100,10 +88,6 @@ class CustomerService:
         return await self.repository.add_favorite(customer_id, data)
 
     async def remove_favorite(self, customer_id: UUID, product_id: UUID) -> bool:
-        if (
-            self.user
-            and str(self.user.id) != str(customer_id)
-            and self.user.role != "admin"
-        ):
+        if self.user and str(self.user.id) != str(customer_id) and self.user.role != "admin":
             raise UnauthorizedError
         return await self.repository.remove_favorite(customer_id, product_id)
